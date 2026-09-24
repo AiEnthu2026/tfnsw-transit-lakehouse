@@ -1,0 +1,29 @@
+resources:
+  jobs:
+    tfnsw_realtime_pipeline:
+      name: tfnsw_realtime_pipeline
+      max_concurrent_runs: 1
+      parameters:
+        - name: catalog_name
+          default: ${var.catalog_name}
+      tasks:
+        - task_key: bronze_streaming_ingestion
+          notebook_task:
+            notebook_path: "../ingestion/bronze/02b Bronze Streaming ingestion.py"
+          environment_key: streaming_env
+        - task_key: silver_vehicle_positions
+          depends_on:
+            - task_key: bronze_streaming_ingestion
+          notebook_task:
+            notebook_path: ../notebooks/silver/silver_gtfs_vehicle_positions.py
+        - task_key: silver_trip_updates
+          depends_on:
+            - task_key: bronze_streaming_ingestion
+          notebook_task:
+            notebook_path: ../notebooks/silver/silver_gtfs_trip_updates.py
+        - task_key: gold_realtime_enriched
+          depends_on:
+            - task_key: silver_vehicle_positions
+            - task_key: silver_trip_updates
+          notebook_task:
+            notebook_path: ../notebooks/gold/gold_realtime_enriched.py
