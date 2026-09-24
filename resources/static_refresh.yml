@@ -10,19 +10,19 @@ resources:
       tasks:
         - task_key: provision_environment
           notebook_task:
-            notebook_path: ../commonsetup/00 provision environment.py
+            notebook_path: ../commonsetup/00 provision environment.ipynb
         - task_key: download_gtfs_static
           depends_on:
             - task_key: provision_environment
           notebook_task:
-            notebook_path: ../download/01 download gtfs static.py
+            notebook_path: ../download/01 download gtfs static.ipynb
         - task_key: bronze_batch_ingestion
           depends_on:
             - task_key: download_gtfs_static
           notebook_task:
-            notebook_path: "../ingestion/bronze/02a Bronze batch ingestion.py"
+            notebook_path: "../ingestion/bronze/02a Bronze batch ingestion.ipynb"
         - task_key: silver_gtfs_static
           depends_on:
             - task_key: bronze_batch_ingestion
           notebook_task:
-            notebook_path: ../notebooks/silver/silver_gtfs_static.py
+            notebook_path: ../notebooks/silver/silver_gtfs_static.ipynb
