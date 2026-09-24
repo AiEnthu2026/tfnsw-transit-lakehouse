@@ -1,0 +1,20 @@
+resources:
+  jobs:
+    tfnsw_test_suite:
+      name: tfnsw_test_suite
+      parameters:
+        - name: catalog_name
+          default: ${var.catalog_name}
+        - name: test_path
+          default: unit
+      environments:
+        - environment_key: test_env
+          spec:
+            client: "1"
+            dependencies:
+              - -r ../requirements-test.txt
+      tasks:
+        - task_key: run_tests
+          notebook_task:
+            notebook_path: ../tests/runtests.ipynb
+          environment_key: test_env
