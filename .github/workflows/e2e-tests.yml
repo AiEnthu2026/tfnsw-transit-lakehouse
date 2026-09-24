@@ -1,0 +1,23 @@
+name: E2E Tests (prod)
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Deploy bundle to prod
+        run: databricks bundle deploy -t prod
+
+      - name: Run e2e tests
+        run: databricks bundle run tfnsw_test_suite -t prod --params test_path=e2e

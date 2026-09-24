@@ -1,0 +1,34 @@
+bundle:
+  name: tfnsw-data-lakehouse
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog_name:
+    description: Unity Catalog catalog for this environment
+  storage_account_name:
+    description: Azure storage account backing the raw landing volume
+
+targets:
+  dev:
+    default: true
+    workspace:
+      host: https://adb-7405604559120126.6.azuredatabricks.net/
+    variables:
+      catalog_name: dev
+      storage_account_name: azuredbstorage2030
+
+  staging:
+    workspace:
+      host: https://adb-7405604559120126.6.azuredatabricks.net/
+    variables:
+      catalog_name: staging
+      storage_account_name: azuredbstorage2030
+
+  prod:
+    workspace:
+      host: https://adb-7405604559120126.6.azuredatabricks.net/
+    variables:
+      catalog_name: prod
+      storage_account_name: azuredbstorage2030
