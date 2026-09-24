@@ -1,0 +1,23 @@
+name: Integration Tests (staging)
+
+on:
+  pull_request:
+    branches: [staging]
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Deploy bundle to staging
+        run: databricks bundle deploy -t staging
+
+      - name: Run integration tests
+        run: databricks bundle run tfnsw_test_suite -t staging --params test_path=integration
