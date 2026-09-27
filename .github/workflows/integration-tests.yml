@@ -1,7 +1,7 @@
 name: Integration Tests (staging)
 
 on:
-  push:
+  pull_request:
     branches: [staging]
 
 jobs:
