@@ -34,7 +34,6 @@ targets:
     # cannot redirect a deploy.
     workspace:
       host: https://adb-7405611900530243.3.azuredatabricks.net/
-      profile: tfnsw-dev
     variables:
       catalog_name: dev
       pipeline_dev_mode: true
@@ -51,4 +50,4 @@ targets:
       host: https://adb-7405611900530243.3.azuredatabricks.net/
     variables:
       catalog_name: prod
-      pipeline_dev_mode: true
+      pipeline_dev_mode: false
