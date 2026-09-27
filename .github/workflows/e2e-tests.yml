@@ -1,15 +1,19 @@
 name: E2E Tests (prod)
 
 on:
-  pull_request:
+  push:
     branches: [main]
 
 jobs:
   e2e-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: prod
     env:
       DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      BUNDLE_VAR_storage_account_name: ${{ secrets.STORAGE_ACCOUNT_NAME }}
+      BUNDLE_VAR_notification_email: ${{ secrets.NOTIFICATION_EMAIL }}
     steps:
       - uses: actions/checkout@v4
 
