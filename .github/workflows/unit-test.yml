@@ -15,6 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check credentials are present
+        run: |
+          [ -n "$DATABRICKS_TOKEN" ] && echo "token: set" || echo "token: EMPTY"
+          [ -n "$DATABRICKS_HOST" ] && echo "host: set" || echo "host: EMPTY"
+
       - name: Install Databricks CLI
         uses: databricks/setup-cli@main
 
