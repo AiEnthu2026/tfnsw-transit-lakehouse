@@ -1,7 +1,7 @@
 resources:
   jobs:
     tfnsw_static_refresh:
-      name: tfnsw_static_refresh
+      name: tfnsw_static_refresh_${bundle.target}
       parameters:
         - name: catalog_name
           default: ${var.catalog_name}

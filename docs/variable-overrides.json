@@ -1,0 +1,5 @@
+{
+  "notification_email": "<notification-email>",
+  "storage_account_name": "<storage-name>",
+  "workspace_host": "https://adb-xxxx.azuredatabricks.net"
+}

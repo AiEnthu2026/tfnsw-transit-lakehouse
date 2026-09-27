@@ -9,26 +9,45 @@ variables:
     description: Unity Catalog catalog for this environment
   storage_account_name:
     description: Azure storage account backing the raw landing volume
+  schema_name:
+    description: Unity Catalog schema for this environment
+    default: tfnsw_transit_platform
+  volume_name:
+    description: Landing volume for raw GTFS drops
+    default: raw_landing
+  checkpoint_volume_name:
+    description: Volume for Auto Loader checkpoints/schema tracking
+    default: pipeline_checkpoints
+  gtfs_modes:
+    description: Comma-separated GTFS modes to ingest
+    default: "sydneytrains"
+  pipeline_dev_mode:
+    description: Whether the LDP pipeline runs in development mode (faster iteration, no retries)
+    default: true
+  notification_email:
+    description: Email address alerted on pipeline failure
 
 targets:
   dev:
     default: true
+    # The workspace host is hardcoded on purpose, so a misconfigured CI variable
+    # cannot redirect a deploy.
     workspace:
-      host: https://adb-7405604559120126.6.azuredatabricks.net/
+      host: https://adb-7405611900530243.3.azuredatabricks.net/
     variables:
       catalog_name: dev
-      storage_account_name: azuredbstorage2030
+      pipeline_dev_mode: true
 
   staging:
     workspace:
-      host: https://adb-7405604559120126.6.azuredatabricks.net/
+      host: https://adb-7405611900530243.3.azuredatabricks.net/
     variables:
       catalog_name: staging
-      storage_account_name: azuredbstorage2030
+      pipeline_dev_mode: false
 
   prod:
     workspace:
-      host: https://adb-7405604559120126.6.azuredatabricks.net/
+      host: https://adb-7405611900530243.3.azuredatabricks.net/
     variables:
       catalog_name: prod
-      storage_account_name: azuredbstorage2030
+      pipeline_dev_mode: false
