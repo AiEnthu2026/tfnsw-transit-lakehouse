@@ -1,7 +1,7 @@
 resources:
   jobs:
     tfnsw_realtime_pipeline:
-      name: tfnsw_realtime_pipeline
+      name: tfnsw_realtime_pipeline_${bundle.target}
       max_concurrent_runs: 1
       parameters:
         - name: catalog_name

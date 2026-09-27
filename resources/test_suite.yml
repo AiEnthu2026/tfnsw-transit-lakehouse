@@ -1,7 +1,7 @@
 resources:
   jobs:
     tfnsw_test_suite:
-      name: tfnsw_test_suite
+      name: tfnsw_test_suite_${bundle.target}
       parameters:
         - name: catalog_name
           default: ${var.catalog_name}
