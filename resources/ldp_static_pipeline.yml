@@ -1,7 +1,7 @@
 resources:
   pipelines:
     tfnsw_static_pipeline:
-      name: tfnsw_static_pipeline
+      name: tfnsw_static_pipeline_${bundle.target}
       serverless: true
       catalog: ${var.catalog_name}
       target: ${var.schema_name}
