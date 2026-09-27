@@ -1,23 +1,33 @@
 name: E2E Tests (prod)
 
 on:
-  pull_request:
+  push:
     branches: [main]
+    paths-ignore: ['docs/**', '**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
 
 jobs:
   e2e-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: prod
     env:
       DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-
       - name: Install Databricks CLI
-        uses: databricks/setup-cli@main
-
+        uses: databricks/setup-cli@<release tag>
+      - name: Validate bundle
+        run: databricks bundle validate -t prod
       - name: Deploy bundle to prod
         run: databricks bundle deploy -t prod
-
       - name: Run e2e tests
         run: databricks bundle run tfnsw_test_suite -t prod --params test_path=e2e
