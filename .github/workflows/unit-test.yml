@@ -12,12 +12,12 @@ jobs:
     env:
       DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-      BUNDLE_VAR_storage_account_name: ${{ vars.STORAGE_ACCOUNT_NAME }}
+      BUNDLE_VAR_storage_account_name: ${{ secrets.STORAGE_ACCOUNT_NAME }}
       BUNDLE_VAR_notification_email: ${{ secrets.NOTIFICATION_EMAIL }}
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Databricks CLI
         uses: databricks/setup-cli@main
 
