@@ -39,3 +39,9 @@ variable "databricks_control_plane_nat_ips" {
     "20.248.253.185/32"
   ]
 }
+
+variable "adf_salesforce_resource_id" {
+  description = "Salesforce resource id"
+  type        = string
+  sensitive   = true
+}

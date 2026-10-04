@@ -26,11 +26,16 @@ resource "azurerm_storage_account" "main" {
 
   min_tls_version                  = "TLS1_2"
   allow_nested_items_to_be_public  = false
+  shared_access_key_enabled        = false
 
   network_rules {
     default_action = "Deny"
     ip_rules       = var.allowed_ip_ranges
     bypass         = ["AzureServices"]
+    private_link_access {
+      endpoint_resource_id = var.adf_salesforce_resource_id
+      endpoint_tenant_id   = data.azurerm_client_config.current.tenant_id
+    }
   }
 
   tags = {
@@ -224,7 +229,7 @@ resource "azurerm_network_security_perimeter_access_rule" "allow_databricks_serv
 resource "azurerm_network_security_perimeter_association" "storage" {
   name                                   = "storage-assoc"
   resource_id                            = azurerm_storage_account.main.id
-  access_mode                            = "Enforced"
+  access_mode                            = "Learning"
   network_security_perimeter_profile_id = azurerm_network_security_perimeter_profile.databricks.id
 }
 
