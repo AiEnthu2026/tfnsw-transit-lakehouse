@@ -18,3 +18,6 @@ resources:
           notebook_task:
             notebook_path: ../tests/runtests.ipynb
           environment_key: test_env
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}

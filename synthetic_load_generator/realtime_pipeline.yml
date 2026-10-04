@@ -19,10 +19,6 @@ resources:
       parameters:
         - name: catalog_name
           default: ${var.catalog_name}
-        - name: poll_duration_seconds
-          default: "30"
-        - name: poll_interval_seconds
-          default: "10"
       environments:
         - environment_key: streaming_env
           spec:
@@ -44,3 +40,4 @@ resources:
             - task_key: run_realtime_ldp_pipeline
           notebook_task:
             notebook_path: ../notebooks/gold/gold_realtime_bi_views.ipynb
+        
