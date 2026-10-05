@@ -1,0 +1,25 @@
+{
+  "id": 24496243,
+  "name": "develop",
+  "target": "branch",
+  "source_type": "Repository",
+  "source": "AiEnthu2026/tfnsw-transit-lakehouse",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "exclude": [],
+      "include": [
+        "refs/heads/develop"
+      ]
+    }
+  },
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    }
+  ],
+  "bypass_actors": []
+}

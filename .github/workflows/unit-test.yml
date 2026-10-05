@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Databricks CLI
-        uses: databricks/setup-cli@main
+        uses: databricks/setup-cli@v1.19.0
 
       - name: Deploy bundle to dev
         run: databricks bundle deploy -t dev
