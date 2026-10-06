@@ -18,6 +18,7 @@ resources:
           notebook_task:
             notebook_path: ../tests/runtests.ipynb
           environment_key: test_env
+          max_retries: 0
       email_notifications:
         on_failure:
           - ${var.notification_email}

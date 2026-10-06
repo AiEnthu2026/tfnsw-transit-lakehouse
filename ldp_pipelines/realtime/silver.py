@@ -18,7 +18,7 @@ dp.create_streaming_table(
     comment="Parsed vehicle positions with a usable vehicle_id and coordinates.",
 )
 def vehicle_positions_valid():
-    parsed = parse_vehicle_positions(spark.readStream.table("bronze_gtfs_vehicle_positions"))
+    parsed = parse_vehicle_positions(spark.readStream.option("skipChangeCommits", "true").table("bronze_gtfs_vehicle_positions"))
     return parsed.filter(VP_VALID_CONDITION).drop("raw_json")
 
 
@@ -33,7 +33,7 @@ dp.create_streaming_table(
     comment="Parsed vehicle positions failing the validity check, original payload retained.",
 )
 def vehicle_positions_invalid():
-    parsed = parse_vehicle_positions(spark.readStream.table("bronze_gtfs_vehicle_positions"))
+    parsed = parse_vehicle_positions(spark.readStream.option("skipChangeCommits", "true").table("bronze_gtfs_vehicle_positions"))
     return parsed.filter(f"NOT ({VP_VALID_CONDITION})").withColumnRenamed("raw_json", "_raw_json")
 
 
@@ -42,9 +42,12 @@ dp.create_streaming_table(
     comment="Latest known position per (gtfs_mode, vehicle_id) -- SCD-1 current-state table.",
 )
 
+@dp.temporary_view(name="silver_vehicle_positions_changes_skipped")
+def vp_cdc_source():
+    return spark.readStream.option("skipChangeCommits", "true").table("silver_gtfs_vehicle_positions")
 dp.create_auto_cdc_flow(
     target="silver_gtfs_vehicle_positions_current",
-    source="silver_gtfs_vehicle_positions",
+    source="silver_vehicle_positions_changes_skipped",
     keys=["gtfs_mode", "vehicle_id"],
     sequence_by="position_timestamp",
     stored_as_scd_type="1",
@@ -63,7 +66,7 @@ dp.create_streaming_table(
     comment="Exploded trip updates that can be attributed to a trip/stop.",
 )
 def trip_updates_valid():
-    exploded = explode_trip_updates(spark.readStream.table("bronze_gtfs_trip_updates"))
+    exploded = explode_trip_updates(spark.readStream.option("skipChangeCommits", "true").table("bronze_gtfs_trip_updates"))
     return exploded.filter(TU_VALID_CONDITION)
 
 
@@ -78,5 +81,5 @@ dp.create_streaming_table(
     comment="Exploded trip updates failing the validity check.",
 )
 def trip_updates_invalid():
-    exploded = explode_trip_updates(spark.readStream.table("bronze_gtfs_trip_updates"))
+    exploded = explode_trip_updates(spark.readStream.option("skipChangeCommits", "true").table("bronze_gtfs_trip_updates"))
     return exploded.filter(f"NOT ({TU_VALID_CONDITION})")
