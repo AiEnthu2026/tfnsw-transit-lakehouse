@@ -12,6 +12,7 @@ resources:
         - file:
             path: ../ldp_pipelines/static/silver.py
       configuration:
+        pipelines.maxFlowRetryAttempts: "0"
         tfnsw.base_landing: "/Volumes/${var.catalog_name}/${var.schema_name}/${var.volume_name}"
         tfnsw.checkpoint_base: "/Volumes/${var.catalog_name}/${var.schema_name}/${var.checkpoint_volume_name}"
         tfnsw.gtfs_modes: ${var.gtfs_modes}
