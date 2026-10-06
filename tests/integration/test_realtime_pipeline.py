@@ -14,7 +14,6 @@ UPDATE_TIMEOUT_SECONDS = 600
 UPDATE_POLL_SECONDS = 15
 ENTITY_ID = f"E_{TEST_VEHICLE_ID}"
 
-
 def _seed_bronze_row(position_timestamp, latitude, longitude):
     raw_json = (
         '{"vehicle": {"id": "%s"}, "position": {"latitude": %s, "longitude": %s}, "timestamp": "%d"}'
