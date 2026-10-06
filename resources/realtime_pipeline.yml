@@ -31,15 +31,18 @@ resources:
               - -r ../requirements.txt
       tasks:
         - task_key: bronze_streaming_ingestion
+          max_retries: 0
           notebook_task:
             notebook_path: "../ingestion/bronze/02b Bronze Streaming ingestion.ipynb"
           environment_key: streaming_env
         - task_key: run_realtime_ldp_pipeline
+          max_retries: 0
           depends_on:
             - task_key: bronze_streaming_ingestion
           pipeline_task:
             pipeline_id: ${resources.pipelines.tfnsw_ldp_realtime_pipeline.id}
         - task_key: publish_gold_bi_views
+          max_retries: 0
           depends_on:
             - task_key: run_realtime_ldp_pipeline
           notebook_task:

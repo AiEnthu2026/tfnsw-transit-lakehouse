@@ -32,14 +32,17 @@ resources:
           default: ${var.storage_account_name}
       tasks:
         - task_key: provision_environment
+          max_retries: 0
           notebook_task:
             notebook_path: ../commonsetup/00 provision environment.ipynb
         - task_key: download_gtfs_static
+          max_retries: 0
           depends_on:
             - task_key: provision_environment
           notebook_task:
             notebook_path: ../download/01 download gtfs static.ipynb
         - task_key: run_static_ldp_pipeline
+          max_retries: 0
           depends_on:
             - task_key: download_gtfs_static
           pipeline_task:
