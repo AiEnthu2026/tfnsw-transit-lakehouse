@@ -30,7 +30,7 @@ dp.create_streaming_table(
 )
 def gold_vehicle_positions_flow():
     trips_dim, routes_dim, stops_dim = _load_static_dims()
-    vp_stream = spark.readStream.option("skipChangeCommits", "true").table("silver_gtfs_vehicle_positions")
+    vp_stream = spark.readStream.table("silver_gtfs_vehicle_positions")
     return enrich_vehicle_positions(vp_stream, trips_dim, routes_dim, stops_dim)
 
 
@@ -47,5 +47,5 @@ dp.create_streaming_table(
 )
 def gold_trip_delays_flow():
     trips_dim, routes_dim, stops_dim = _load_static_dims()
-    tu_stream = spark.readStream.option("skipChangeCommits", "true").table("silver_gtfs_trip_updates")
+    tu_stream = spark.readStream.table("silver_gtfs_trip_updates")
     return enrich_trip_delays(tu_stream, trips_dim, routes_dim, stops_dim)

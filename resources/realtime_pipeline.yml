@@ -11,6 +11,8 @@ resources:
             path: ../ldp_pipelines/realtime/silver.py
         - file:
             path: ../ldp_pipelines/realtime/gold.py
+      configuration:
+        pipelines.maxFlowRetryAttempts: "0"
 
   jobs:
     tfnsw_realtime_pipeline:
