@@ -69,12 +69,13 @@ New environments need step 3 first: the pipelines and tests assume the schema an
 ## Testing
 
 - **Unit:** the transform functions in `utils/`, with no cluster dependency beyond Spark.
-- **Integration:** seeds Bronze with a newer and a stale row, triggers the realtime LDP pipeline through the Databricks SDK, and asserts that the current table keeps the newer position. The tier starts by running the static and realtime jobs, so it works on a fresh environment.
+- **Integration:** seeds Bronze with a newer and a stale row for a uniquely named test vehicle, runs one realtime LDP pipeline update through the Databricks SDK, then checks that the update completed, both rows reached Silver, the current table holds exactly one row for the vehicle, and that row is the newer position. The tests never delete anything. The tier starts by running the static and realtime jobs, so it works on a fresh environment.
 - **End-to-end:** runs both jobs fully and checks the Gold tables and BI views.
 
 ## Design decisions
 
-- **Bronze is append-only.** No dedup, MERGE or overwrite; a duplicate or corrected row is just another row. Dedup happens in Silver.
+- **Bronze is append-only by convention.** No dedup, MERGE or overwrite; a duplicate or corrected row is just another row. Dedup happens in Silver. Enforcement at the table level is planned (see Known gaps).
+- **Streaming reads fail loudly on source changes.** Silver and Gold read their sources with plain streaming reads, so a delete or update in a source fails the stream instead of being skipped silently. The trade-off is that a legitimate delete, such as an erasure request, needs a controlled full refresh downstream.
 - **Bad rows are quarantined, not dropped.** Named expectations route rows (for example, a vehicle position with no coordinates) to `_quarantine` tables with the original payload intact.
 - **Current position uses auto CDC.** The latest position per vehicle is decided by position timestamp, not arrival order, and the integration tier proves it.
 - **Gold joins are LEFT joins.** An unscheduled trip often has no static record; that is normal GTFS, so it still produces a row with nulls.
@@ -86,7 +87,7 @@ Things that went wrong on the way to a green `main`, and what they changed:
 
 1. **Stale bundle state produced a destructive plan on staging.** A pipeline that no longer existed in the bundle was still in deployment state. I approved the plan locally after checking that only that pipeline was deleted, and CI never uses auto-approve.
 2. **The integration tier depended on tables built elsewhere.** The CDC test needed static and realtime tables that only the pipelines create, so it failed on a clean environment. Fix: the integration tier now runs the static and realtime jobs first (a deliberate copy of the e2e tests; a fixture that builds only what is missing is on the backlog).
-3. **Overlapping runs against staging produced a Delta streaming error** (`DELTA_SOURCE_IGNORE_DELETE`). I did not prove the exact cause. I believe overlapping and manual runs left staging in a bad state; I rebuilt the schema, cleared the checkpoints, re-provisioned and re-ran, and it passed. Testing concurrency by hand showed that jobs queue behind a running run, while pipeline updates and deploys do not. Planned prevention: a workflow `concurrency` group.
+3. **A test fixture deleted rows from streaming sources.** The integration test cleaned up its synthetic vehicle by deleting rows from Bronze and Silver, which are streaming sources, and a Delta stream fails when its source has a delete commit (`DELTA_SOURCE_IGNORE_DELETE`). `DESCRIBE HISTORY` showed the `DELETE` on the Bronze table. The first run after a rebuild passed, because no delete commit existed yet; every later run failed. I first worked around it with `skipChangeCommits`, then removed that, since it would hide a real violation of an append-only Bronze. The tests now seed a uniquely named vehicle and never delete. Separately, pipeline updates and deploys do not queue behind a running update, while jobs do; planned prevention is a workflow `concurrency` group.
 
 ## Decisions made for a solo, scaled-down build
 
@@ -96,6 +97,7 @@ Things that went wrong on the way to a green `main`, and what they changed:
 - Network Security Perimeter instead of VNet injection or Private Link. Private endpoints are the production path I would take next.
 - The realtime Bronze layer is a polling notebook, with LDP for Silver and Gold. An experimental LDP-native Bronze variant is kept in `ldp_pipelines/realtime/bronze.py`; replacing the polling notebook with it is a planned next step.
 - The workspace host is committed in `databricks.yml` deliberately, so a misconfigured CI variable cannot send a deploy to another workspace. It is an identifier, not a credential; access needs Entra authentication.
+- Job tasks run with `max_retries: 0`: a deterministic failure just repeats on retry, so a failing run should fail fast and alert.
 
 ## Known gaps
 
@@ -104,6 +106,8 @@ Things that went wrong on the way to a green `main`, and what they changed:
 - The storage account's Network Security Perimeter association is in learning mode, not Enforced.
 - A fully LDP-native Bronze for realtime is a planned next step.
 - The static timetable comes from the v1 "Timetables - For Realtime" dataset. TfNSW has published a v2 (the v1 Metro endpoint is marked superseded); moving the Sydney Trains download to v2 is a planned check.
+- Bronze append-only is a convention, not yet enforced. The planned fix is `delta.appendOnly` on the realtime Bronze table plus write access limited to the ingestion identity.
+- Integration tests share the staging catalog, and their synthetic vehicles (the `TEST_V_CDC_` prefix) stay in staging Bronze. A dedicated test environment is planned.
 
 ## Evolution
 
