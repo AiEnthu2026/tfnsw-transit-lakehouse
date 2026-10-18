@@ -3,7 +3,7 @@ from delta.tables import DeltaTable
 import sys, os
 sys.path.append(os.path.abspath("../.."))
 
-from utils.silver_transforms import upsert_current_position
+from legacy.silver_transforms_legacy import upsert_current_position
 
 TEST_TABLE = f"{CATALOG_NAME}.{SCHEMA_NAME}.test_silver_vehicle_positions_current"
 
