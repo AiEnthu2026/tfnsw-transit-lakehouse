@@ -2,7 +2,7 @@ import sys, os
 sys.path.append(os.path.abspath("../.."))
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType
-from utils.silver_transforms import upsert_entity_to_silver
+from legacy.silver_transforms_legacy import upsert_entity_to_silver
 
 TEST_BRONZE = f"{CATALOG_NAME}.{SCHEMA_NAME}.test_bronze_gtfs_routes"
 TEST_SILVER = f"{CATALOG_NAME}.{SCHEMA_NAME}.test_silver_gtfs_routes"

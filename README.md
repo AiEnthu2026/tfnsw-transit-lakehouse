@@ -32,8 +32,9 @@ flowchart LR
 | `ldp_pipelines/` | LDP pipeline code for static and realtime |
 | `utils/` | Pure transform functions used by the pipelines and unit tests |
 | `commonsetup/` | One-time environment provisioning and shared config notebooks |
-| `download/`, `ingestion/` | GTFS download and Bronze ingestion notebooks |
-| `notebooks/` | Earlier notebook-based Silver and Gold implementations (see Evolution) |
+| `download/` | GTFS static download notebook |
+| `notebooks/`, `ingestion/` | Notebooks the realtime job still runs: the streaming Bronze ingestion and the BI views publish step |
+| `legacy/` | Retired notebook-based Silver and Gold, the old upsert functions and their tests, kept as reference (see Evolution) |
 | `tests/` | `unit`, `integration` and `e2e` tiers, run on Databricks by `runtests.ipynb` |
 | `terraform/` | Azure infrastructure |
 | `.github/` | Workflows for each gate, and exported branch rulesets |
@@ -47,7 +48,7 @@ Work moves `develop` → `staging` → `main`, and each hop is gated by a differ
 | Event | Gate | What runs |
 |---|---|---|
 | Push to `develop` | Unit tests | Pure transform tests |
-| Pull request into `staging` | Integration tests | Silver upsert and the CDC "latest position wins" invariant, run against the real pipeline |
+| Pull request into `staging` | Integration tests | CDC "latest position wins" invariant, run against the real pipeline |
 | Pull request into `main` | End-to-end tests | The static job, then the realtime job, then checks that the Gold tables and BI views are queryable |
 
 Branch rulesets (exported in `.github/rulesets/`) require pull requests, merge commits only, and the integration and e2e checks to pass, with no bypass actors. The bundle has `dev`, `staging` and `prod` targets, each with its own Unity Catalog catalog. GitHub environments hold the per-stage secrets.
@@ -75,6 +76,7 @@ New environments need step 3 first: the pipelines and tests assume the schema an
 ## Design decisions
 
 - **Bronze is append-only by convention.** No dedup, MERGE or overwrite; a duplicate or corrected row is just another row. Dedup happens in Silver. Enforcement at the table level is planned (see Known gaps).
+- **Static Bronze uses Auto Loader with a declared schema per entity.** A registry drives one streaming table for each of the seven static entities. Auto Loader reads the CSV columns as text, and each is converted to its declared type with `try_cast`, so a malformed value becomes null instead of failing the load. Unexpected columns go to a rescued-data column (schema evolution mode `rescue`) instead of being lost. A filename pattern (`entity_YYYYMMDD`) selects the date-stamped files, each file's source path is stored with every row, and each GTFS mode feeds the same table through its own append flow. Rows with a null business key are dropped at Bronze by an expectation.
 - **Streaming reads fail loudly on source changes.** Silver and Gold read their sources with plain streaming reads, so a delete or update in a source fails the stream instead of being skipped silently. The trade-off is that a legitimate delete, such as an erasure request, needs a controlled full refresh downstream.
 - **Bad rows are quarantined, not dropped.** Named expectations route rows (for example, a vehicle position with no coordinates) to `_quarantine` tables with the original payload intact.
 - **Current position uses auto CDC.** The latest position per vehicle is decided by position timestamp, not arrival order, and the integration tier proves it.
@@ -87,13 +89,14 @@ Things that went wrong on the way to a green `main`, and what they changed:
 
 1. **Stale bundle state produced a destructive plan on staging.** A pipeline that no longer existed in the bundle was still in deployment state. I approved the plan locally after checking that only that pipeline was deleted, and CI never uses auto-approve.
 2. **The integration tier depended on tables built elsewhere.** The CDC test needed static and realtime tables that only the pipelines create, so it failed on a clean environment. Fix: the integration tier now runs the static and realtime jobs first (a deliberate copy of the e2e tests; a fixture that builds only what is missing is on the backlog).
-3. **A test fixture deleted rows from streaming sources.** The integration test cleaned up its synthetic vehicle by deleting rows from Bronze and Silver, which are streaming sources, and a Delta stream fails when its source has a delete commit (`DELTA_SOURCE_IGNORE_DELETE`). `DESCRIBE HISTORY` showed the `DELETE` on the Bronze table. The first run after a rebuild passed, because no delete commit existed yet; every later run failed. I first worked around it with `skipChangeCommits`, then removed that, since it would hide a real violation of an append-only Bronze. The tests now seed a uniquely named vehicle and never delete. Separately, pipeline updates and deploys do not queue behind a running update, while jobs do; planned prevention is a workflow `concurrency` group.
+3. **A test fixture deleted rows from streaming sources.** The integration test cleaned up its synthetic vehicle by deleting rows from Bronze and Silver, which are streaming sources, and a Delta stream fails when its source has a delete commit (`DELTA_SOURCE_IGNORE_DELETE`). `DESCRIBE HISTORY` showed the `DELETE` on the Bronze table. The first run after a rebuild passed, because no delete commit existed yet; every later run failed. I first worked around it with `skipChangeCommits`, then removed that, since it would hide a real violation of an append-only Bronze. The tests now seed a uniquely named vehicle and never delete. Separately, pipeline updates and deploys do not queue behind a running update, while jobs do.
 
 ## Decisions made for a solo, scaled-down build
 
 - One workspace with separate catalogs per stage, not separate workspaces.
 - Personal access token for CI, not a service principal with OIDC.
 - No required reviewers between stages (solo project).
+- Each workflow runs in a per-environment `concurrency` group (`tfnsw-dev`, `tfnsw-staging`, `tfnsw-prod`), so deploys to the same target never overlap, and the workflow token is read-only.
 - Network Security Perimeter instead of VNet injection or Private Link. Private endpoints are the production path I would take next.
 - The realtime Bronze layer is a polling notebook, with LDP for Silver and Gold. An experimental LDP-native Bronze variant is kept in `ldp_pipelines/realtime/bronze.py`; replacing the polling notebook with it is a planned next step.
 - The workspace host is committed in `databricks.yml` deliberately, so a misconfigured CI variable cannot send a deploy to another workspace. It is an identifier, not a credential; access needs Entra authentication.
@@ -107,11 +110,12 @@ Things that went wrong on the way to a green `main`, and what they changed:
 - A fully LDP-native Bronze for realtime is a planned next step.
 - The static timetable comes from the v1 "Timetables - For Realtime" dataset. TfNSW has published a v2 (the v1 Metro endpoint is marked superseded); moving the Sydney Trains download to v2 is a planned check.
 - Bronze append-only is a convention, not yet enforced. The planned fix is `delta.appendOnly` on the realtime Bronze table plus write access limited to the ingestion identity.
+- Static Bronze converts values with `try_cast`, so a malformed value becomes null and the original text is not kept. Applying the declared schema at read time would preserve such values in the rescued-data column; changing it needs a full refresh of the static Bronze tables, so it is deferred.
 - Integration tests share the staging catalog, and their synthetic vehicles (the `TEST_V_CDC_` prefix) stay in staging Bronze. A dedicated test environment is planned.
 
 ## Evolution
 
-The notebooks under `notebooks/` are the original notebook-orchestrated Silver and Gold implementations. Static Silver used a hash-diff MERGE (hash the business columns, and touch a row only if its hash changed); real-time Silver was append-only on a checkpoint. They were replaced by the LDP pipelines and are kept as reference for how the design evolved.
+The notebook-based Silver and Gold, the batch and landing-only Bronze notebooks, and the MERGE-based upsert functions were the original implementation. Static Silver used a hash-diff MERGE (hash the business columns, and touch a row only if its hash changed); realtime Silver was append-only on a checkpoint. They were replaced by the LDP pipelines and now live in `legacy/` as reference for how the design evolved. Two notebooks outside `legacy/` are still live: the streaming Bronze ingestion and the BI views publish step.
 
 ## Dashboard
 

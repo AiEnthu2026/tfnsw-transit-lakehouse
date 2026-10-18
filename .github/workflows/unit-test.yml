@@ -4,6 +4,13 @@ on:
   push:
     branches: [develop]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: tfnsw-dev
+  cancel-in-progress: false
+
 jobs:
   unit-tests:
     runs-on: ubuntu-latest

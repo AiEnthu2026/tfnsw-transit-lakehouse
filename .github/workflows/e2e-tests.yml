@@ -4,6 +4,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: tfnsw-prod
+  cancel-in-progress: false
+
 jobs:
   e2e-tests:
     runs-on: ubuntu-latest

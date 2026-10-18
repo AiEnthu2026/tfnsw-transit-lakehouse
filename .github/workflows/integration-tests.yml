@@ -4,6 +4,13 @@ on:
   pull_request:
     branches: [staging]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: tfnsw-staging
+  cancel-in-progress: false
+
 jobs:
   integration-tests:
     runs-on: ubuntu-latest
