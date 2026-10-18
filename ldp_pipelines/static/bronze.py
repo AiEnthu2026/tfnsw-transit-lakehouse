@@ -1,8 +1,6 @@
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType
-import os
-import re
 
 BASE_LANDING = spark.conf.get("tfnsw.base_landing")
 GTFS_MODES = spark.conf.get("tfnsw.gtfs_modes").split(",")
