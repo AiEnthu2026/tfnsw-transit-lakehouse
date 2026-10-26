@@ -13,11 +13,20 @@ resources:
             path: ../ldp_pipelines/realtime/gold.py
       configuration:
         pipelines.maxFlowRetryAttempts: "0"
+      notifications:
+        - email_recipients:
+            - ${var.notification_email}
+          alerts:
+            - on-update-failure
+            - on-update-fatal-failure
 
   jobs:
     tfnsw_realtime_pipeline:
       name: tfnsw_realtime_pipeline_${bundle.target}
       max_concurrent_runs: 1
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
       parameters:
         - name: catalog_name
           default: ${var.catalog_name}

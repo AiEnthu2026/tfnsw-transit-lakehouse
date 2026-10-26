@@ -23,14 +23,7 @@ VEHICLE_POSITION_RAW_JSON_SCHEMA = StructType([
 ])
 
 def parse_vehicle_positions(bronze_df):
-    """
-    Parse Bronze's raw_json blob into typed vehicle-position columns.
-
-    Pure function: takes any DataFrame with entity_id, gtfs_mode,
-    poll_timestamp, ingestion_timestamp, raw_json columns (streaming
-    or a plain in-memory batch for tests) and returns the parsed shape,
-    with no quality filtering and no I/O -- that's the caller's job.
-    """
+    """Parse Bronze's raw_json into typed vehicle-position columns. No filtering or I/O."""
     return (
         bronze_df
         .withColumn("parsed", F.from_json(F.col("raw_json"), VEHICLE_POSITION_RAW_JSON_SCHEMA))
@@ -56,12 +49,9 @@ def parse_vehicle_positions(bronze_df):
 
 def explode_trip_updates(bronze_df):
     """
-    Explode Bronze's nested stop_time_updates array to one row per
-    (trip, stop) -- the grain delay metrics actually need.
+    Explode stop_time_updates to one row per (trip, stop).
 
-    Pure function, no filtering: explode_outer (not explode) so a trip
-    with an empty stop_time_updates array still produces one row, with
-    nulls for the stop fields, instead of vanishing.
+    Uses explode_outer so a trip with an empty array keeps one row with null stop fields.
     """
     return (
         bronze_df
