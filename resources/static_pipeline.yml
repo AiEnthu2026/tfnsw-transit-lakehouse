@@ -26,6 +26,9 @@ resources:
   jobs:
     tfnsw_static_refresh:
       name: tfnsw_static_refresh_${bundle.target}
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
       parameters:
         - name: catalog_name
           default: ${var.catalog_name}
