@@ -2,6 +2,7 @@ resources:
   jobs:
     tfnsw_test_suite:
       name: tfnsw_test_suite_${bundle.target}
+      timeout_seconds: 3600
       parameters:
         - name: catalog_name
           default: ${var.catalog_name}
