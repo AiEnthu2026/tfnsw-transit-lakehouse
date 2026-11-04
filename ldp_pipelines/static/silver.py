@@ -1,9 +1,7 @@
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
-# Mirrors ENTITY_REGISTRY's key_cols/date_cols from bronze and silver_gtfs_static notebook.
-# ENTITY_REGISTRY duplicating GTFS_ENTITIES from Bronze -- fine for now, fold
-# into one shared config source later.
+# Mirrors key_cols/date_cols in ldp_pipelines/static/bronze.py.
 ENTITY_KEYS = {
     "agency": ["agency_id"],
     "routes": ["route_id"],
@@ -15,8 +13,7 @@ ENTITY_KEYS = {
 }
 
 ENTITY_DATE_COLS = {
-    "calendar": ["start_date", "end_date"],
-    "calendar_dates": ["date"],
+    "calendar": ["start_date", "end_date"]
 }
 
 def _make_typed_view(entity: str, date_cols: list):

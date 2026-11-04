@@ -1,4 +1,5 @@
 import sys, os
+import datetime
 sys.path.append(os.path.abspath("../.."))
 from pyspark.sql import functions as F
 from utils.gold_transforms import enrich_vehicle_positions, enrich_trip_delays
@@ -41,10 +42,14 @@ def test_gold_join_resolves_route_and_stop_for_trip_delays():
 
     tu_batch = spark.createDataFrame(
         [("sydneytrains", "TRIP1", None, "V1", "20260927", 10, "STOP1", 60, 90,
-          "2026-09-27T10:00:00", "2026-09-27T10:00:05")],
+            "2026-09-27T10:00:00", "2026-09-27T10:00:05",
+            "SCHEDULED", "SCHEDULED",
+            datetime.datetime(2026, 9, 27, 10, 0, 0), datetime.datetime(2026, 9, 27, 10, 0, 30))],
         "gtfs_mode STRING, trip_id STRING, route_id STRING, vehicle_id STRING, start_date STRING, "
         "stop_sequence INT, stop_id STRING, arrival_delay_seconds INT, departure_delay_seconds INT, "
-        "poll_timestamp STRING, ingestion_timestamp STRING",
+        "poll_timestamp STRING, ingestion_timestamp STRING, "
+        "trip_schedule_relationship STRING, stop_schedule_relationship STRING, "
+        "arrival_timestamp TIMESTAMP, departure_timestamp TIMESTAMP",
     )
 
     enriched = enrich_trip_delays(tu_batch, trips_dim, routes_dim, stops_dim)
@@ -53,6 +58,8 @@ def test_gold_join_resolves_route_and_stop_for_trip_delays():
     assert row["stop_name"] == "Central Station", f"FAIL: stop not resolved, got {row['stop_name']}"
     assert row["arrival_delay_seconds"] == 60, "FAIL: arrival_delay_seconds should pass through unchanged"
     assert row["departure_delay_seconds"] == 90, "FAIL: departure_delay_seconds should pass through unchanged"
+    assert row["trip_schedule_relationship"] == "SCHEDULED", "FAIL: trip_schedule_relationship should pass through"
+    assert row["arrival_timestamp"] == datetime.datetime(2026, 9, 27, 10, 0, 0), "FAIL: arrival_timestamp should pass through"
     print("PASS: Gold join resolves route/stop for trip delays, delay figures pass through unchanged")
 
 
@@ -69,10 +76,13 @@ def test_gold_join_trip_delays_preserves_unresolved_rows():
 
     tu_batch = spark.createDataFrame(
         [("sydneytrains", "UNSCHEDULED_TRIP", None, "V1", "20260927", None, None, 30, None,
-          "2026-09-27T10:00:00", "2026-09-27T10:00:05")],
+            "2026-09-27T10:00:00", "2026-09-27T10:00:05",
+            "CANCELED", None, None, None)],
         "gtfs_mode STRING, trip_id STRING, route_id STRING, vehicle_id STRING, start_date STRING, "
         "stop_sequence INT, stop_id STRING, arrival_delay_seconds INT, departure_delay_seconds INT, "
-        "poll_timestamp STRING, ingestion_timestamp STRING",
+        "poll_timestamp STRING, ingestion_timestamp STRING, "
+        "trip_schedule_relationship STRING, stop_schedule_relationship STRING, "
+        "arrival_timestamp TIMESTAMP, departure_timestamp TIMESTAMP",
     )
 
     enriched = enrich_trip_delays(tu_batch, empty_trips, empty_routes, empty_stops)
@@ -81,4 +91,5 @@ def test_gold_join_trip_delays_preserves_unresolved_rows():
     assert rows[0]["trip_id"] == "UNSCHEDULED_TRIP"
     assert rows[0]["route_short_name"] is None and rows[0]["stop_name"] is None
     assert rows[0]["arrival_delay_seconds"] == 30, "FAIL: delay figures should survive even when route/stop are unresolved"
+    assert rows[0]["trip_schedule_relationship"] == "CANCELED", "FAIL: trip-level cancellation should survive the join"
     print("PASS: unresolved trip still produces a row with nulls, delay figures intact")
