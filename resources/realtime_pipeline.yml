@@ -21,8 +21,8 @@ resources:
             - on-update-fatal-failure
 
   jobs:
-    tfnsw_realtime_pipeline:
-      name: tfnsw_realtime_pipeline_${bundle.target}
+    tfnsw_realtime_capture:
+      name: tfnsw_realtime_capture_${bundle.target}
       max_concurrent_runs: 1
       timeout_seconds: 3900
       queue:
