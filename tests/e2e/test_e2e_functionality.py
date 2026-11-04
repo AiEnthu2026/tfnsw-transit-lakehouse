@@ -5,10 +5,14 @@ from databricks.sdk import WorkspaceClient
 
 JOB_NAMES = {
     "static": f"tfnsw_static_refresh_{CATALOG_NAME}",
-    "realtime": f"tfnsw_realtime_pipeline_{CATALOG_NAME}",
+    "capture": f"tfnsw_realtime_capture_{CATALOG_NAME}",
+    "process": f"tfnsw_realtime_process_{CATALOG_NAME}",
 }
-RUN_TIMEOUT_SECONDS = 1800  # static download + realtime's poll window + both LDP updates
+
+E2E_POLL_SECONDS = "900"
+RUN_TIMEOUT_SECONDS = 2400
 RUN_POLL_SECONDS = 20
+
 
 def form_table_name(name): 
     return f"{CATALOG_NAME}.{SCHEMA_NAME}.{name}"
@@ -29,8 +33,8 @@ def _find_job_id(w, job_name):
         return j.job_id
     raise RuntimeError(f"Job '{job_name}' not found -- has it been deployed to this target?")
 
-def _run_job_and_wait(w, job_id):
-    run = w.jobs.run_now(job_id=job_id)
+def _run_job_and_wait(w, job_id, params=None):
+    run = w.jobs.run_now(job_id=job_id, job_parameters=params)
     deadline = time.monotonic() + RUN_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
         run_status = w.jobs.get_run(run_id=run.run_id)
@@ -121,3 +125,23 @@ def test_static_dimension_keys_are_unique():
         assert duplicate_count == 0, (
             f"{table}: {duplicate_count} duplicate keys. Examples: {duplicates.limit(5).collect()}"
         )
+
+
+def test_trip_updates_no_bronze_update_lost():
+    keys = ["gtfs_mode", "entity_id", "poll_timestamp"]
+    bronze = spark.table(form_table_name("bronze_gtfs_trip_updates")).select(*keys).distinct().count()
+    silver = (
+        spark.table(form_table_name("silver_gtfs_trip_updates")).select(*keys)
+        .union(spark.table(form_table_name("silver_gtfs_trip_updates_quarantine")).select(*keys))
+        .distinct().count()
+    )
+    assert bronze > 0, "bronze_gtfs_trip_updates is empty"
+    assert silver == bronze, f"Bronze updates ({bronze}) != distinct Silver+quarantine updates ({silver})"
+
+
+def test_gold_trip_delays_have_no_unresolved_stop_names():
+    bad = (spark.table(form_table_name("gold_trip_delays_enriched"))
+           .filter("stop_id IS NOT NULL AND stop_name IS NULL")
+           .groupBy("gtfs_mode").count().collect())
+    assert not bad, f"Unresolved stop names found: {bad}"
+
