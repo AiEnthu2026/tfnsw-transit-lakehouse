@@ -52,5 +52,7 @@ def enrich_trip_delays(tu_df, trips_dim, routes_dim, stops_dim):
             F.col("tu.stop_sequence"), F.col("tu.stop_id"), F.col("s.stop_name"),
             F.col("tu.arrival_delay_seconds"), F.col("tu.departure_delay_seconds"),
             F.col("tu.poll_timestamp"), F.col("tu.ingestion_timestamp"),
+            F.col("tu.trip_schedule_relationship"), F.col("tu.stop_schedule_relationship"),
+            F.col("tu.arrival_timestamp"), F.col("tu.departure_timestamp"),
         )
     )
