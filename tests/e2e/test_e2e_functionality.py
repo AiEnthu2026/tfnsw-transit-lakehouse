@@ -60,14 +60,20 @@ def test_static_job_runs_end_to_end_and_populates_dims():
     print("PASS: static job ran end-to-end and populated the static dimension tables")
 
 
-def test_realtime_job_runs_end_to_end_and_produces_queryable_gold():
+def test_capture_job_lands_bronze():
     w = WorkspaceClient()
-    _run_job_and_wait(w, _find_job_id(w, JOB_NAMES["realtime"]))
+    _run_job_and_wait(w, _find_job_id(w, JOB_NAMES["capture"]),
+                      {"poll_duration_seconds": E2E_POLL_SECONDS})
+    assert get_count("bronze_gtfs_vehicle_positions") > 0, "bronze_gtfs_vehicle_positions is empty"
+
+
+def test_process_job_produces_queryable_gold():
+    w = WorkspaceClient()
+    _run_job_and_wait(w, _find_job_id(w, JOB_NAMES["process"]))
     for view_or_table in ["gold_vehicle_positions_enriched", "gold_trip_delays_enriched",
                            "gold_vehicle_positions_current_v", "gold_route_delay_summary_v"]:
         spark.sql(f"SELECT * FROM {CATALOG_NAME}.{SCHEMA_NAME}.{view_or_table} LIMIT 1").collect()
-    print("PASS: realtime job ran end-to-end; all Gold tables and BI views are queryable")
-
+    print("PASS: process job ran; Gold tables and BI views are queryable")
 
 # Data checks: keep below the job-run tests; pytest runs tests in file order.
 def test_gtfs_vehicle_positions_table_counts_match():
