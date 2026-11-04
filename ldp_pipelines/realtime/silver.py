@@ -10,6 +10,7 @@ VP_VALID_CONDITION = "vehicle_id IS NOT NULL AND latitude IS NOT NULL AND longit
 dp.create_streaming_table(
     name="silver_gtfs_vehicle_positions",
     comment="Parsed, valid vehicle-position history (Silver layer) -- append-only.",
+    cluster_by=["gtfs_mode", "poll_timestamp"],
 )
 
 @dp.append_flow(
@@ -50,11 +51,16 @@ dp.create_auto_cdc_flow(
     stored_as_scd_type="1",
 )
 
-TU_VALID_CONDITION = "trip_id IS NOT NULL AND (stop_sequence IS NOT NULL OR stop_id IS NOT NULL)"
+TU_VALID_CONDITION = (
+    "trip_id IS NOT NULL AND ("
+    "stop_sequence IS NOT NULL OR stop_id IS NOT NULL "
+    "OR (trip_schedule_relationship IS NOT NULL AND trip_schedule_relationship <> 'SCHEDULED'))"
+)
 
 dp.create_streaming_table(
     name="silver_gtfs_trip_updates",
     comment="Exploded (trip, stop) grain trip-update history (Silver layer) -- append-only.",
+    cluster_by=["gtfs_mode", "poll_timestamp"],
 )
 
 @dp.append_flow(

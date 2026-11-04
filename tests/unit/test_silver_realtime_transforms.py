@@ -36,17 +36,20 @@ def test_parse_vehicle_positions_extracts_nested_fields():
 def test_explode_trip_updates_multiple_stops_and_empty_array():
     schema = (
         "gtfs_mode STRING, entity_id STRING, trip_id STRING, route_id STRING, "
-        "start_date STRING, vehicle_id STRING, poll_timestamp STRING, ingestion_timestamp STRING, "
-        "stop_time_updates ARRAY<STRUCT<stop_sequence:INT, stop_id:STRING, arrival_delay:INT, departure_delay:INT>>"
+        "start_date STRING, vehicle_id STRING, trip_schedule_relationship STRING, "
+        "poll_timestamp STRING, ingestion_timestamp STRING, "
+        "stop_time_updates ARRAY<STRUCT<stop_sequence:INT, stop_id:STRING, arrival_delay:INT, "
+        "departure_delay:INT, arrival_time:BIGINT, departure_time:BIGINT, schedule_relationship:STRING>>"
     )
     bronze_df = spark.createDataFrame(
         [
-            # Trip with two stop-time updates -- should explode to two rows.
-            ("sydneytrains", "E1", "TRIP1", "T1", "20260927", "V1", "2026-09-27T10:00:00", "2026-09-27T10:00:05",
-             [(10, "STOP_A", 60, 90), (11, "STOP_B", 120, 150)]),
-            # Trip with an empty stop_time_updates array -- must still survive as one row, nulls not a dropped row.
-            ("sydneytrains", "E2", "TRIP2", "T2", "20260927", "V2", "2026-09-27T10:00:00", "2026-09-27T10:00:05",
-             []),
+            ("sydneytrains", "E1", "TRIP1", "T1", "20260927", "V1", "SCHEDULED",
+             "2026-09-27T10:00:00", "2026-09-27T10:00:05",
+             [(10, "STOP_A", 60, 90, 1790030848, 1790030900, "SCHEDULED"),
+              (11, "STOP_B", 120, 150, None, None, None)]),
+            # Cancelled trip with an empty array -- must survive as one trip-level row.
+            ("sydneytrains", "E2", "TRIP2", "T2", "20260927", "V2", "CANCELED",
+             "2026-09-27T10:00:00", "2026-09-27T10:00:05", []),
         ],
         schema,
     )
@@ -63,5 +66,10 @@ def test_explode_trip_updates_multiple_stops_and_empty_array():
     trip2_row = [r for r in exploded if r["trip_id"] == "TRIP2"][0]
     assert trip2_row["stop_id"] is None and trip2_row["stop_sequence"] is None, \
         "FAIL: empty stop_time_updates array should survive as one null-stop row, not be dropped"
+
+    assert trip1_rows[0]["arrival_timestamp"] is not None, "FAIL: epoch arrival_time should become a timestamp"
+    assert trip1_rows[1]["arrival_timestamp"] is None, "FAIL: missing arrival_time should stay null"
+    assert trip1_rows[0]["stop_schedule_relationship"] == "SCHEDULED"
+    assert trip2_row["trip_schedule_relationship"] == "CANCELED", "FAIL: trip-level cancellation signal lost"
 
     print("PASS: explode_outer correctly fans out multi-stop trips and preserves empty-array trips")
