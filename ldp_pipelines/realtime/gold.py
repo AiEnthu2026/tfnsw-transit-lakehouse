@@ -20,7 +20,7 @@ def _load_static_dims():
 dp.create_streaming_table(
     name="gold_vehicle_positions_enriched",
     comment="Vehicle positions enriched with static route/trip/stop context.",
-    partition_cols=["gtfs_mode"],
+    cluster_by=["gtfs_mode", "poll_timestamp"],
 )
 
 @dp.append_flow(
@@ -37,7 +37,7 @@ def gold_vehicle_positions_flow():
 dp.create_streaming_table(
     name="gold_trip_delays_enriched",
     comment="Trip delays enriched with static route/trip/stop context.",
-    partition_cols=["gtfs_mode"],
+    cluster_by=["gtfs_mode", "poll_timestamp"],
 )
 
 @dp.append_flow(

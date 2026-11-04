@@ -20,12 +20,22 @@ variables:
     default: pipeline_checkpoints
   gtfs_modes:
     description: Comma-separated GTFS modes to ingest
-    default: "sydneytrains"
+    default: "sydneytrains,metro"
   pipeline_dev_mode:
     description: Whether the LDP pipeline runs in development mode (faster iteration, no retries)
     default: true
   notification_email:
     description: Email address alerted on pipeline failure
+  capture_poll_duration_seconds:
+    default: "3300"
+  capture_poll_interval_seconds:
+    default: "30"
+  capture_schedule_status:
+    default: PAUSED
+  process_schedule_status:
+    default: PAUSED
+  static_schedule_status:
+    default: PAUSED
 
 targets:
   dev:
@@ -37,6 +47,9 @@ targets:
     variables:
       catalog_name: dev
       pipeline_dev_mode: true
+      capture_schedule_status: PAUSED
+      process_schedule_status: PAUSED
+      static_schedule_status: PAUSED
 
   staging:
     workspace:
@@ -44,6 +57,9 @@ targets:
     variables:
       catalog_name: staging
       pipeline_dev_mode: false
+      capture_schedule_status: PAUSED
+      process_schedule_status: PAUSED
+      static_schedule_status: PAUSED
 
   prod:
     workspace:
@@ -51,3 +67,6 @@ targets:
     variables:
       catalog_name: prod
       pipeline_dev_mode: false
+      capture_schedule_status: PAUSED
+      process_schedule_status: PAUSED
+      static_schedule_status: PAUSED

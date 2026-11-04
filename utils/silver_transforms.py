@@ -63,11 +63,15 @@ def explode_trip_updates(bronze_df):
             F.col("route_id"),
             F.col("start_date"),
             F.col("vehicle_id"),
+            F.col("trip_schedule_relationship").alias("trip_schedule_relationship"),
             F.col("poll_timestamp").cast("timestamp").alias("poll_timestamp"),
             F.col("ingestion_timestamp").cast("timestamp").alias("ingestion_timestamp"),
             F.col("stu.stop_sequence").alias("stop_sequence"),
             F.col("stu.stop_id").alias("stop_id"),
             F.col("stu.arrival_delay").alias("arrival_delay_seconds"),
             F.col("stu.departure_delay").alias("departure_delay_seconds"),
+            F.to_timestamp(F.col("stu.arrival_time")).alias("arrival_timestamp"),
+            F.to_timestamp(F.col("stu.departure_time")).alias("departure_timestamp"),
+            F.col("stu.schedule_relationship").alias("stop_schedule_relationship"),
         )
     )
