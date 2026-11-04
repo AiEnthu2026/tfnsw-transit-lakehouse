@@ -24,6 +24,13 @@ resources:
     tfnsw_realtime_pipeline:
       name: tfnsw_realtime_pipeline_${bundle.target}
       max_concurrent_runs: 1
+      timeout_seconds: 3900
+      queue:
+        enabled: true
+      schedule:
+        quartz_cron_expression: "0 0 6-10,12,15-19 ? * *"
+        timezone_id: Australia/Sydney
+        pause_status: ${var.capture_schedule_status}
       email_notifications:
         on_failure:
           - ${var.notification_email}
@@ -31,9 +38,9 @@ resources:
         - name: catalog_name
           default: ${var.catalog_name}
         - name: poll_duration_seconds
-          default: "30"
+          default: ${var.capture_poll_duration_seconds}
         - name: poll_interval_seconds
-          default: "10"
+          default: ${var.capture_poll_interval_seconds}
       environments:
         - environment_key: streaming_env
           spec:
@@ -46,10 +53,23 @@ resources:
           notebook_task:
             notebook_path: "../ingestion/bronze/02b Bronze Streaming ingestion.ipynb"
           environment_key: streaming_env
+
+    tfnsw_realtime_process:
+      name: tfnsw_realtime_process_${bundle.target}
+      max_concurrent_runs: 1
+      schedule:
+        quartz_cron_expression: "0 0 22 ? * *"
+        timezone_id: Australia/Sydney
+        pause_status: ${var.process_schedule_status}
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+      parameters:
+        - name: catalog_name
+          default: ${var.catalog_name}
+      tasks:
         - task_key: run_realtime_ldp_pipeline
           max_retries: 0
-          depends_on:
-            - task_key: bronze_streaming_ingestion
           pipeline_task:
             pipeline_id: ${resources.pipelines.tfnsw_ldp_realtime_pipeline.id}
         - task_key: publish_gold_bi_views

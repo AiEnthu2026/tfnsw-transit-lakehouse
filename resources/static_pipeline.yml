@@ -26,6 +26,12 @@ resources:
   jobs:
     tfnsw_static_refresh:
       name: tfnsw_static_refresh_${bundle.target}
+      max_concurrent_runs: 1
+      timeout_seconds: 3600
+      schedule:
+        quartz_cron_expression: "0 30 21 ? * *"
+        timezone_id: Australia/Sydney
+        pause_status: ${var.static_schedule_status}
       email_notifications:
         on_failure:
           - ${var.notification_email}
