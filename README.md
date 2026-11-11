@@ -10,7 +10,7 @@ A Databricks lakehouse for Sydney Trains and Sydney Metro GTFS data (static time
 - **Realtime capture:** a scheduled job polls the GTFS-realtime feeds for both modes and appends the raw rows to Bronze. One 55-minute run (a poll every 30 seconds) starts at each of the hours 06–10, 12 and 15–19 Sydney time, 11 hours a day. Each run writes one row per feed to `bronze_streaming_run_log` (polls attempted, polls failed, rows written) and fails the job if a feed returns no rows or too many polls fail.
 - **Realtime processing:** a nightly job (22:00) runs the realtime LDP pipeline, which builds Silver (with data-quality expectations and quarantine tables) and Gold, then publishes the BI views.
 - **Current position:** the latest position per vehicle uses LDP auto CDC (SCD Type 1), keyed on vehicle and sequenced by position timestamp, so a late-arriving stale row can never overwrite a newer one.
-- **Gold and BI:** enriched vehicle-position and trip-delay tables, plus BI views (latest observation per trip and stop, route delay summary, delay hotspots, cancellations, busiest stations, destinations, Metro headway regularity, capture coverage, data trust and network regime) feed a Power BI report.
+- **Gold and BI:** enriched vehicle-position and trip-delay tables, plus BI views (latest observation per trip and stop, service profile, route delay summary, delay hotspots, cancellations, busiest stations, destinations, Metro headway regularity, current vehicle positions, capture coverage, data trust and network regime) feed a Power BI report.
 
 ## Architecture
 
@@ -110,6 +110,10 @@ Things that went wrong on the way to a green `main`, and what they changed:
 4. **Unknown destinations that a rerun could not fix.** The dashboard showed 99–100% Unknown destination for Sydney Trains on Oct 29 – Nov 1. Route and stop resolution were fine (under 2% unresolved), so the join was not broken. The two timetable releases I had ingested shared no trip IDs (the Silver trip count was exactly the sum of both), and trip IDs change with each release. Gold resolves the headsign at processing time, so rows processed before their release was loaded kept a null headsign. A per-day check split the nulls into "trip not in the static table" and "trip found, headsign blank". After a full refresh of the Gold tables, Nov 2 fell to 1.8% Unknown and Nov 3 to 0.09%. Oct 29 – Nov 1 did not change, because those releases were never ingested. The static refresh is now scheduled daily at 21:30, ahead of the 22:00 process run.
 5. **A stale Bronze table failed an otherwise clean deploy.** The Bronze trip-update tables in dev, staging and prod predated the current schema. Because new and retyped columns are rescued, the new fields landed in `_rescued_data` and Silver failed with an unresolved column. The e2e tier caught it. The fix was to recreate the Bronze trip-update table and run a full refresh of the downstream pipeline.
 
+## Delta file layout
+
+Snapshotted Delta file layout across bronze, silver and gold after 13 days of live capture. Bronze trip updates had accumulated 26 small files (about 3 MB each); OPTIMIZE compacted it to 2 with no change in data size. At under 100 MB per table, I judged compaction and clustering benchmarks not justified at this size.
+
 ## Trade-offs and known gaps
 
 **Solo-build trade-offs**
@@ -130,12 +134,17 @@ Things that went wrong on the way to a green `main`, and what they changed:
 - Each realtime run writes once at the end, so a crash loses that run's polls.
 - Integration tests share the staging catalog, and their synthetic vehicles (the `TEST_V_CDC_` prefix) stay in staging Bronze.
 
-**Data limitations** (observed Oct 26 – Nov 3, 2026)
-- **Coverage is windowed.** Capture runs 11 hours a day, so a full day is 11 captured hours. No capture on Oct 31 (platform outage); Oct 30 and Nov 1 are partial days.
+**Data limitations** (observed Oct 26 – Nov 8, 2026)
+- **Coverage is windowed.** Capture runs 11 hours a day, so a full day is 11 captured hours. No capture on Oct 31 (platform outage); Oct 30, Nov 1 and Nov 7 are partial days.
 - **Destination depends on the timetable release.** Sydney Trains: Unknown on Oct 29 – Nov 1 (99–100%), 1.8% on Nov 2, 0.09% on Nov 3, and about 0.1% before Oct 29. Metro: Unknown on Oct 27–29 (100%), resolved on Oct 26 and from Oct 30.
 - **Route and stop resolution is high.** Sydney Trains unresolved route is 0.7–1.8% a day and unresolved stop 0.0%. Metro is 0.0% for both.
 - **Sydney Trains scheduled times are sparse.** Arrival times are present on about 16–40% of stop updates, against about 95–97% for Metro, so headway regularity is Metro-only.
 - **The Metro network changed.** Stations served rose from 21 to 31 on Oct 30; the network-regime view marks the change so comparisons across it are explicit.
+- **Delay hours are the scheduled hour.** Where a stop has a scheduled time, the hour comes from it, not from when it was polled, so the delay summary includes stops scheduled outside the capture hours. The hourly chart excludes hours before 06:00, at 11:00, 13:00–14:00 and after 19:59. Hotspots are by station and not split by hour.
+- **Metro delay averages are rounded to 0.1 minute** in the route delay summary view.
+- **Sydney Trains mode includes intercity and regional services**, which is why the largest delay hotspots are regional stations.
+- **Metro replacement flags changed on Oct 30.** Trips flagged REPLACEMENT in the feed were about 43–50% of Metro trips on Oct 26–29 and about 6–7% from Oct 30. The cause has not been verified.
+- **Some vehicles have no resolved route.** In the last captured hour, 247 of 480 vehicles had no resolved route and are excluded from the route chart.
 
 ## Evolution
 
@@ -143,14 +152,36 @@ The original notebook-based Silver and Gold, the batch Bronze notebooks and thei
 
 ## Dashboard
 
-A Power BI report (Import mode) built on the Gold BI views. It currently has two pages:
+A Power BI report (Import mode) built on the Gold BI views. The snapshots show data from Oct 26 to Nov 8, 2026. It has six pages:
 
-- **Data trust and coverage:** hours captured per day and whether each day is a full day, poll failure rate, how reliable each field is by mode and day, and Metro stations served per day.
-- **Service profile:** active trips and vehicles by hour, busiest stations, top destinations, and the Unknown destination rate by mode and day.
+- **Data trust and coverage:** hours captured per day, whether each day is a full day, poll failure rate, field reliability by mode and day, and Metro stations served per day.
 
 ![Data trust and coverage](docs/powerbi/data-trust.png)
 
+
+- **Service profile:** active trips and vehicles by hour, busiest stations, top destinations, and the Unknown destination rate by mode and day.
+
 ![Service profile](docs/powerbi/service-profile.png)
+
+
+- **Delays:** average delay by hour (capture hours only), the share of stop events more than 5 minutes late, and delay hotspots by station.
+
+![Delays](docs/powerbi/delays.png)
+
+
+- **Cancellations:** cancelled and replacement trips by day and route.
+
+![Cancellations](docs/powerbi/cancellations.png)
+
+
+- **Headway regularity (Metro only):** the gap between consecutive departures at a platform, by hour, by day and by stop.
+
+![Headway regularity](docs/powerbi/headway-regularity.png)
+
+
+- **Latest vehicle positions:** the latest known position of each vehicle in the last captured hour.
+
+![Latest vehicle positions](docs/powerbi/latest-vehicle-positions.png)
 
 The report file is not published, because it embeds the workspace connection. `powerbi/` holds an earlier version of the dashboard (Sydney Trains only), which can be opened in Power BI Desktop without a Databricks connection, and its PDF snapshot.
 
